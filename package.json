@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "fetch-openapi": "chmod +x ./scripts/fetch-openapi.sh && ./scripts/fetch-openapi.sh",
+    "orval": "orval --config orval.config.ts"
   },
   "dependencies": {
     "@auth/core": "latest",
@@ -40,6 +42,7 @@
     "@radix-ui/react-toggle": "^1.1.1",
     "@radix-ui/react-toggle-group": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.6",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -47,6 +50,7 @@
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.454.0",
     "next": "14.2.16",
     "next-auth": "latest",
@@ -68,10 +72,14 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.49.1",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "axios": "^1.7.9",
+    "orval": "^7.5.0",
     "postcss": "^8",
+    "swr": "^2.3.2",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }

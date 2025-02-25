@@ -9,6 +9,10 @@ import { Slider } from "@/components/ui/slider"
 import { toast } from "sonner"
 import { ArrowLeft, Camera, Check, QrCode, X } from "lucide-react"
 import Link from "next/link"
+import LoadingSpinner from "@/components/LoadingSpinner"
+import jsQR from "jsqr"
+import { usePointsControllerAwardPoints } from "@/lib/api/generated/points/points"
+import { CreatePointTransactionDtoType } from "@/lib/api/generated/types"
 
 // Mock user data - in a real app, this would come from a database
 const mockUsers = [
@@ -22,9 +26,15 @@ export default function ScanQRPage() {
   const [scannedCode, setScannedCode] = useState("")
   const [manualCode, setManualCode] = useState("")
   const [pointsToAdd, setPointsToAdd] = useState(10)
-  const [user, setUser] = useState<typeof mockUsers[0] | null>(null)
+  const [user, setUser] = useState<any | null>(null)
+  const [loading, setLoading] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const animationRef = useRef<number | null>(null)
+
+  // 生成されたAPIフックを使用
+  const { trigger: awardPointsToUser, isMutating } = usePointsControllerAwardPoints()
 
   // Start camera for QR code scanning
   const startScanning = async () => {
@@ -37,14 +47,9 @@ export default function ScanQRPage() {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        videoRef.current.play()
         setScanning(true)
-        
-        // In a real app, you would use a library like jsQR to scan the video feed
-        // For this demo, we'll simulate a scan after 3 seconds
-        setTimeout(() => {
-          const mockQRCode = `RAMEN-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
-          handleScan(mockQRCode)
-        }, 3000)
+        scanQRCode()
       }
     } catch (error) {
       console.error("Error accessing camera:", error)
@@ -52,140 +57,171 @@ export default function ScanQRPage() {
     }
   }
 
-  // Stop camera
+  // Scan QR code from video feed
+  const scanQRCode = () => {
+    if (!videoRef.current || !canvasRef.current) return
+    
+    const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
+    if (!context) return
+    
+    const scanFrame = () => {
+      if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+        const videoWidth = videoRef.current.videoWidth
+        const videoHeight = videoRef.current.videoHeight
+        
+        canvas.width = videoWidth
+        canvas.height = videoHeight
+        context.drawImage(videoRef.current, 0, 0, videoWidth, videoHeight)
+        
+        const imageData = context.getImageData(0, 0, videoWidth, videoHeight)
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        })
+        
+        if (code) {
+          // Check if the code starts with our prefix
+          if (code.data.startsWith('ramen-loyalty:')) {
+            handleScan(code.data)
+            return
+          }
+        }
+      }
+      
+      animationRef.current = requestAnimationFrame(scanFrame)
+    }
+    
+    scanFrame()
+  }
+
+  // Stop scanning
   const stopScanning = () => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+      animationRef.current = null
+    }
+    
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
     }
+    
     setScanning(false)
-  }
-
-  // Handle scanned QR code
-  const handleScan = (code: string) => {
-    setScannedCode(code)
-    stopScanning()
-    
-    // In a real app, you would validate the code against your database
-    // For this demo, we'll just pick a random user
-    const randomUser = mockUsers[Math.floor(Math.random() * mockUsers.length)]
-    setUser(randomUser)
-  }
-
-  // Handle manual code entry
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!manualCode) return
-    
-    handleScan(manualCode)
-  }
-
-  // Award points to user
-  const awardPoints = () => {
-    if (!user) return
-    
-    // In a real app, you would update the database
-    toast.success(`${user.name}に${pointsToAdd}ポイントを付与しました！`, {
-      description: `現在の合計: ${user.points + pointsToAdd}ポイント`,
-      duration: 5000,
-    })
-    
-    // Reset state
-    setScannedCode("")
-    setManualCode("")
-    setUser(null)
-    setPointsToAdd(10)
   }
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-      }
+      stopScanning()
     }
   }, [])
 
+  // Handle scanned code
+  const handleScan = async (code: string) => {
+    stopScanning()
+    setScannedCode(code)
+    
+    // Extract user ID from QR code
+    const userId = code.replace('ramen-loyalty:', '')
+    
+    try {
+      setLoading(true)
+      // In a real app, fetch user data from API
+      const response = await fetch(`/api/users/${userId}`)
+      if (!response.ok) {
+        throw new Error('User not found')
+      }
+      const userData = await response.json()
+      setUser(userData)
+    } catch (error) {
+      console.error('Error fetching user:', error)
+      toast.error('ユーザーが見つかりませんでした')
+      setUser(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle manual code input
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!manualCode) return
+    
+    handleScan(`ramen-loyalty:${manualCode}`)
+  }
+
+  // Award points to user
+  const awardPoints = async () => {
+    if (!user) return
+    
+    try {
+      setLoading(true)
+      
+      await awardPointsToUser({
+        userId: user.id,
+        points: pointsToAdd,
+        type: CreatePointTransactionDtoType.earn,
+        description: '店舗での購入'
+      })
+      
+      toast.success(`${pointsToAdd}ポイントを付与しました`)
+      
+      // Update user data with new points
+      setUser({
+        ...user,
+        totalPoints: (user.totalPoints || 0) + pointsToAdd
+      })
+      
+      // Reset for next scan
+      setPointsToAdd(10)
+      setScannedCode("")
+    } catch (error) {
+      console.error('Error awarding points:', error)
+      toast.error('ポイント付与に失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col items-center px-4 py-6 max-w-md mx-auto">
-      <div className="w-full flex items-center mb-6">
-        <Link href="/admin" className="mr-2">
+    <div className="space-y-6 px-4 py-6 max-w-3xl mx-auto">
+      <div className="flex items-center">
+        <Link href="/admin" className="mr-4">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
         <h1 className="text-2xl font-bold">QRコードスキャン</h1>
       </div>
-      
-      <Card className="w-full shadow-lg">
-        {!scannedCode ? (
+
+      <Card>
+        {scanning ? (
           <>
             <CardHeader>
-              <CardTitle>ポイント付与</CardTitle>
+              <CardTitle>QRコードをスキャン</CardTitle>
               <CardDescription>
-                お客様のQRコードをスキャンするか、コードを手動で入力してください
+                カメラにQRコードを映してください
               </CardDescription>
             </CardHeader>
-            
-            <CardContent className="space-y-6">
-              {scanning ? (
-                <div className="relative aspect-square w-full bg-black rounded-lg overflow-hidden">
-                  <video 
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 border-[3px] border-white/30 rounded-lg">
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2/3 h-2/3 border-2 border-primary rounded-lg"></div>
-                  </div>
-                  <Button 
-                    variant="destructive"
-                    size="icon"
-                    className="absolute bottom-4 right-4 rounded-full"
-                    onClick={stopScanning}
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
-              ) : (
-                <Button 
-                  onClick={startScanning} 
-                  className="w-full py-8 flex flex-col gap-2"
-                >
-                  <Camera className="h-8 w-8 mb-1" />
-                  <span>カメラでスキャン</span>
-                </Button>
-              )}
-              
+            <CardContent>
               <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-muted" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    または
-                  </span>
-                </div>
+                <video 
+                  ref={videoRef} 
+                  className="w-full rounded-md"
+                  playsInline
+                />
+                <canvas 
+                  ref={canvasRef} 
+                  className="hidden"
+                />
               </div>
-              
-              <form onSubmit={handleManualSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="qrCode">QRコードを手動入力</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="qrCode"
-                      placeholder="RAMEN-123456789"
-                      value={manualCode}
-                      onChange={(e) => setManualCode(e.target.value)}
-                    />
-                    <Button type="submit" disabled={!manualCode}>
-                      <QrCode className="h-4 w-4 mr-2" />
-                      確認
-                    </Button>
-                  </div>
-                </div>
-              </form>
+              <Button 
+                variant="outline" 
+                className="w-full mt-4"
+                onClick={stopScanning}
+              >
+                キャンセル
+              </Button>
             </CardContent>
           </>
         ) : (
@@ -193,12 +229,51 @@ export default function ScanQRPage() {
             <CardHeader>
               <CardTitle>ポイント付与</CardTitle>
               <CardDescription>
-                {user ? `${user.name}さんにポイントを付与します` : 'ユーザー情報を取得中...'}
+                QRコードをスキャンするか、ユーザーIDを入力してください
               </CardDescription>
             </CardHeader>
-            
-            <CardContent className="space-y-6">
-              {user && (
+            <CardContent>
+              {!scannedCode ? (
+                <div className="space-y-6">
+                  <Button 
+                    className="w-full h-32 flex flex-col gap-2"
+                    onClick={startScanning}
+                  >
+                    <Camera className="h-8 w-8" />
+                    <span>QRコードをスキャン</span>
+                  </Button>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        または
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <form onSubmit={handleManualSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="userId">ユーザーID</Label>
+                      <Input 
+                        id="userId"
+                        placeholder="ユーザーIDを入力"
+                        value={manualCode}
+                        onChange={(e) => setManualCode(e.target.value)}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">
+                      検索
+                    </Button>
+                  </form>
+                </div>
+              ) : loading ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner />
+                </div>
+              ) : user ? (
                 <div className="space-y-6">
                   <div className="p-4 bg-muted rounded-lg">
                     <div className="grid grid-cols-2 gap-4">
@@ -208,15 +283,15 @@ export default function ScanQRPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">現在のポイント</p>
-                        <p className="font-medium">{user.points}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">来店回数</p>
-                        <p className="font-medium">{user.visits}回</p>
+                        <p className="font-medium">{user.totalPoints}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">メール</p>
                         <p className="font-medium">{user.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">電話番号</p>
+                        <p className="font-medium">{user.phone || '未設定'}</p>
                       </div>
                     </div>
                   </div>
@@ -242,18 +317,34 @@ export default function ScanQRPage() {
                           setScannedCode("")
                           setUser(null)
                         }}
+                        disabled={isMutating}
                       >
                         キャンセル
                       </Button>
                       <Button 
                         className="flex-1 gap-2"
                         onClick={awardPoints}
+                        disabled={isMutating}
                       >
                         <Check className="h-4 w-4" />
                         ポイント付与
                       </Button>
                     </div>
                   </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-red-500">ユーザーが見つかりませんでした</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => {
+                      setScannedCode("")
+                      setManualCode("")
+                    }}
+                  >
+                    再試行
+                  </Button>
                 </div>
               )}
             </CardContent>

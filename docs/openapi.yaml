@@ -1,0 +1,596 @@
+---
+  openapi: "3.1.0"
+  paths: 
+    /: 
+      get: 
+        operationId: "AppController_getHello"
+        parameters: []
+        responses: 
+          200: 
+            description: ""
+        tags: 
+          - "app"
+    /auth/signup: 
+      post: 
+        operationId: "AuthController_signUp"
+        summary: "Register a new user"
+        parameters: []
+        requestBody: 
+          required: true
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/SignUpDto"
+        responses: 
+          201: 
+            description: "User successfully created"
+          400: 
+            description: "Bad request"
+        tags: 
+          - "auth"
+    /auth/signin: 
+      post: 
+        operationId: "AuthController_signIn"
+        summary: "Sign in a user"
+        parameters: []
+        requestBody: 
+          required: true
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/SignInDto"
+        responses: 
+          200: 
+            description: "User successfully signed in"
+          401: 
+            description: "Unauthorized"
+        tags: 
+          - "auth"
+    /auth/signout: 
+      post: 
+        operationId: "AuthController_signOut"
+        summary: "Sign out a user"
+        parameters: []
+        responses: 
+          200: 
+            description: "User successfully signed out"
+          401: 
+            description: "Unauthorized"
+        tags: 
+          - "auth"
+        security: 
+          - 
+            bearer: []
+    /auth/me: 
+      get: 
+        operationId: "AuthController_getProfile"
+        summary: "Get current user profile"
+        parameters: []
+        responses: 
+          200: 
+            description: "Returns the current user profile"
+          401: 
+            description: "Unauthorized"
+        tags: 
+          - "auth"
+        security: 
+          - 
+            bearer: []
+    /auth/admin/create: 
+      post: 
+        operationId: "AuthController_createAdmin"
+        summary: "Create an admin user (admin only)"
+        parameters: []
+        requestBody: 
+          required: true
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/SignUpDto"
+        responses: 
+          201: 
+            description: "Admin user created"
+          401: 
+            description: "Unauthorized"
+          403: 
+            description: "Forbidden"
+        tags: 
+          - "auth"
+        security: 
+          - 
+            bearer: []
+    /users: 
+      get: 
+        operationId: "UsersController_findAll"
+        summary: "Get all users (admin only)"
+        parameters: 
+          - 
+            name: "limit"
+            required: false
+            in: "query"
+            schema: 
+              type: "number"
+          - 
+            name: "page"
+            required: false
+            in: "query"
+            schema: 
+              type: "number"
+        responses: 
+          200: 
+            description: "Returns all users"
+          403: 
+            description: "Forbidden"
+        tags: 
+          - "users"
+        security: 
+          - 
+            bearer: []
+    /users/{id}: 
+      get: 
+        operationId: "UsersController_findOne"
+        summary: "Get user by ID (admin only)"
+        parameters: 
+          - 
+            name: "id"
+            required: true
+            in: "path"
+            schema: 
+              type: "number"
+        responses: 
+          200: 
+            description: "Returns the user"
+          403: 
+            description: "Forbidden"
+          404: 
+            description: "User not found"
+        tags: 
+          - "users"
+        security: 
+          - 
+            bearer: []
+      put: 
+        operationId: "UsersController_update"
+        summary: "Update user"
+        parameters: 
+          - 
+            name: "id"
+            required: true
+            in: "path"
+            schema: 
+              type: "number"
+        requestBody: 
+          required: true
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/UpdateUserDto"
+        responses: 
+          200: 
+            description: "User updated successfully"
+          403: 
+            description: "Forbidden"
+          404: 
+            description: "User not found"
+        tags: 
+          - "users"
+        security: 
+          - 
+            bearer: []
+      delete: 
+        operationId: "UsersController_remove"
+        summary: "Delete user (admin only)"
+        parameters: 
+          - 
+            name: "id"
+            required: true
+            in: "path"
+            schema: 
+              type: "number"
+        responses: 
+          200: 
+            description: "User deleted successfully"
+          403: 
+            description: "Forbidden"
+          404: 
+            description: "User not found"
+        tags: 
+          - "users"
+        security: 
+          - 
+            bearer: []
+    /points/earn: 
+      post: 
+        operationId: "PointsController_awardPoints"
+        summary: "Award points to a user (admin only)"
+        parameters: []
+        requestBody: 
+          required: true
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/CreatePointTransactionDto"
+        responses: 
+          201: 
+            description: "Points awarded successfully"
+          401: 
+            description: "Unauthorized"
+          403: 
+            description: "Forbidden"
+        tags: 
+          - "points"
+        security: 
+          - 
+            bearer: []
+    /points/history/{userId}: 
+      get: 
+        operationId: "PointsController_getHistory"
+        summary: "Get point transaction history for a user"
+        parameters: 
+          - 
+            name: "userId"
+            required: true
+            in: "path"
+            schema: 
+              type: "number"
+          - 
+            name: "limit"
+            required: false
+            in: "query"
+            schema: 
+              type: "number"
+          - 
+            name: "page"
+            required: false
+            in: "query"
+            schema: 
+              type: "number"
+        responses: 
+          200: 
+            description: "Returns point transaction history"
+          401: 
+            description: "Unauthorized"
+        tags: 
+          - "points"
+        security: 
+          - 
+            bearer: []
+    /rewards: 
+      get: 
+        operationId: "RewardsController_findAll"
+        summary: "Get all rewards"
+        parameters: 
+          - 
+            name: "activeOnly"
+            required: false
+            in: "query"
+            schema: 
+              type: "boolean"
+          - 
+            name: "limit"
+            required: false
+            in: "query"
+            schema: 
+              type: "number"
+          - 
+            name: "page"
+            required: false
+            in: "query"
+            schema: 
+              type: "number"
+        responses: 
+          200: 
+            description: "Returns all rewards"
+        tags: 
+          - "rewards"
+      post: 
+        operationId: "RewardsController_create"
+        summary: "Create a new reward (admin only)"
+        parameters: []
+        requestBody: 
+          required: true
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/CreateRewardDto"
+        responses: 
+          201: 
+            description: "Reward created successfully"
+          401: 
+            description: "Unauthorized"
+          403: 
+            description: "Forbidden"
+        tags: 
+          - "rewards"
+        security: 
+          - 
+            bearer: []
+    /rewards/{id}: 
+      get: 
+        operationId: "RewardsController_findOne"
+        summary: "Get reward by ID"
+        parameters: 
+          - 
+            name: "id"
+            required: true
+            in: "path"
+            schema: 
+              type: "number"
+        responses: 
+          200: 
+            description: "Returns the reward"
+          404: 
+            description: "Reward not found"
+        tags: 
+          - "rewards"
+      put: 
+        operationId: "RewardsController_update"
+        summary: "Update a reward (admin only)"
+        parameters: 
+          - 
+            name: "id"
+            required: true
+            in: "path"
+            schema: 
+              type: "number"
+        requestBody: 
+          required: true
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/UpdateRewardDto"
+        responses: 
+          200: 
+            description: "Reward updated successfully"
+          401: 
+            description: "Unauthorized"
+          403: 
+            description: "Forbidden"
+          404: 
+            description: "Reward not found"
+        tags: 
+          - "rewards"
+        security: 
+          - 
+            bearer: []
+      delete: 
+        operationId: "RewardsController_remove"
+        summary: "Delete a reward (admin only)"
+        parameters: 
+          - 
+            name: "id"
+            required: true
+            in: "path"
+            schema: 
+              type: "number"
+        responses: 
+          200: 
+            description: "Reward deleted successfully"
+          401: 
+            description: "Unauthorized"
+          403: 
+            description: "Forbidden"
+          404: 
+            description: "Reward not found"
+        tags: 
+          - "rewards"
+        security: 
+          - 
+            bearer: []
+    /rewards/redeem: 
+      post: 
+        operationId: "RewardsController_redeem"
+        summary: "Redeem a reward"
+        parameters: []
+        requestBody: 
+          required: true
+          content: 
+            application/json: 
+              schema: 
+                $ref: "#/components/schemas/RedeemRewardDto"
+        responses: 
+          201: 
+            description: "Reward redeemed successfully"
+          400: 
+            description: "Not enough points"
+          401: 
+            description: "Unauthorized"
+          404: 
+            description: "Reward not found"
+        tags: 
+          - "rewards"
+        security: 
+          - 
+            bearer: []
+    /analytics/summary: 
+      get: 
+        operationId: "AnalyticsController_getSummary"
+        summary: "Get analytics summary (admin only)"
+        parameters: []
+        responses: 
+          200: 
+            description: "Returns analytics summary"
+          401: 
+            description: "Unauthorized"
+          403: 
+            description: "Forbidden"
+        tags: 
+          - "analytics"
+        security: 
+          - 
+            bearer: []
+    /analytics/points: 
+      get: 
+        operationId: "AnalyticsController_getPointsAnalytics"
+        summary: "Get points analytics (admin only)"
+        parameters: []
+        responses: 
+          200: 
+            description: "Returns points analytics"
+          401: 
+            description: "Unauthorized"
+          403: 
+            description: "Forbidden"
+        tags: 
+          - "analytics"
+        security: 
+          - 
+            bearer: []
+    /analytics/rewards: 
+      get: 
+        operationId: "AnalyticsController_getRewardsAnalytics"
+        summary: "Get rewards analytics (admin only)"
+        parameters: []
+        responses: 
+          200: 
+            description: "Returns rewards analytics"
+          401: 
+            description: "Unauthorized"
+          403: 
+            description: "Forbidden"
+        tags: 
+          - "analytics"
+        security: 
+          - 
+            bearer: []
+  info: 
+    title: "Ramen Loyalty API"
+    description: "API for Ramen Loyalty App"
+    version: "1.0"
+    contact: {}
+  tags: []
+  servers: []
+  components: 
+    securitySchemes: 
+      bearer: 
+        scheme: "bearer"
+        bearerFormat: "JWT"
+        type: "http"
+    schemas: 
+      SignUpDto: 
+        type: "object"
+        properties: 
+          email: 
+            type: "string"
+            example: "user@example.com"
+          password: 
+            type: "string"
+            example: "password123"
+          name: 
+            type: "string"
+            example: "John Doe"
+          phone: 
+            type: "string"
+            example: "+1234567890"
+        required: 
+          - "email"
+          - "password"
+          - "name"
+          - "phone"
+      SignInDto: 
+        type: "object"
+        properties: 
+          email: 
+            type: "string"
+            example: "user@example.com"
+          password: 
+            type: "string"
+            example: "password123"
+        required: 
+          - "email"
+          - "password"
+      UpdateUserDto: 
+        type: "object"
+        properties: 
+          email: 
+            type: "string"
+            example: "user@example.com"
+          name: 
+            type: "string"
+            example: "John Doe"
+          phone: 
+            type: "string"
+            example: "+1234567890"
+          profileImageUrl: 
+            type: "string"
+            example: "https://example.com/profile.jpg"
+          isAdmin: 
+            type: "boolean"
+            example: true
+      CreatePointTransactionDto: 
+        type: "object"
+        properties: 
+          userId: 
+            type: "number"
+            example: 1
+          points: 
+            type: "number"
+            example: 100
+          type: 
+            type: "string"
+            example: "earn"
+            enum: 
+              - "earn"
+              - "redeem"
+          description: 
+            type: "string"
+            example: "Points for visiting store"
+          createdBy: 
+            type: "number"
+            example: 1
+        required: 
+          - "userId"
+          - "points"
+          - "type"
+      CreateRewardDto: 
+        type: "object"
+        properties: 
+          name: 
+            type: "string"
+            example: "Free Ramen"
+          description: 
+            type: "string"
+            example: "Get a free bowl of ramen"
+          pointsCost: 
+            type: "number"
+            example: 500
+          imageUrl: 
+            type: "string"
+            example: "https://example.com/ramen.jpg"
+          isActive: 
+            type: "boolean"
+            example: true
+        required: 
+          - "name"
+          - "pointsCost"
+      UpdateRewardDto: 
+        type: "object"
+        properties: 
+          name: 
+            type: "string"
+            example: "Free Ramen"
+          description: 
+            type: "string"
+            example: "Get a free bowl of ramen"
+          pointsCost: 
+            type: "number"
+            example: 500
+          imageUrl: 
+            type: "string"
+            example: "https://example.com/ramen.jpg"
+          isActive: 
+            type: "boolean"
+            example: true
+      RedeemRewardDto: 
+        type: "object"
+        properties: 
+          userId: 
+            type: "number"
+            example: 1
+          rewardId: 
+            type: "number"
+            example: 1
+        required: 
+          - "userId"
+          - "rewardId"
+

@@ -1,168 +1,164 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Gift, QrCode, ArrowRight, Soup, Utensils, Egg, Flame } from "lucide-react"
-import Link from "next/link"
+import { useEffect, useState } from 'react';
+import ProtectedLayout from '../components/ProtectedLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { QrCode, Gift, History } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from 'next/navigation';
+import { QRCodeSVG } from 'qrcode.react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-// Mock user data - in a real app, this would come from a database
-const mockUser = {
-  name: "ゲスト",
-  points: 350,
-  level: "ブロンズ",
-  nextLevel: "シルバー",
-  nextLevelPoints: 500,
-  history: [
-    { id: 1, date: "2023-06-15", action: "ポイント獲得", points: 25, store: "渋谷店" },
-    { id: 2, date: "2023-06-10", action: "ポイント獲得", points: 30, store: "新宿店" },
-    { id: 3, date: "2023-06-05", action: "特典交換", points: -100, reward: "味玉サービス" },
-  ]
-}
+export default function Home() {
+  const { profile, signOut, session, profileLoading } = useAuth();
+  const router = useRouter();
+  const [showQR, setShowQR] = useState(false);
+  const [qrValue, setQrValue] = useState('');
 
-// Available rewards
-const availableRewards = [
-  { id: 1, name: "味玉サービス", points: 100, icon: Egg },
-  { id: 2, name: "チャーシュー増量", points: 200, icon: Utensils },
-  { id: 3, name: "ラーメン一杯無料", points: 500, icon: Soup },
-]
+  // QRコードの値を設定
+  useEffect(() => {
+    if (session?.user?.id) {
+      setQrValue(`ramen-loyalty:${session.user.id}`);
+    }
+  }, [session]);
 
-export default function HomePage() {
-  const [user] = useState(mockUser)
-  
-  // Calculate progress to next level
-  const progressPercentage = Math.min(100, (user.points / user.nextLevelPoints) * 100)
-  
-  // Filter rewards that the user can redeem
-  const redeemableRewards = availableRewards.filter(reward => user.points >= reward.points)
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/login');
+  };
+
+  const toggleQRCode = () => {
+    setShowQR(!showQR);
+  };
 
   return (
-    <div className="flex flex-col px-4 py-6 max-w-md mx-auto space-y-6">
-      {/* User Points Card */}
-      <Card className="w-full shadow-lg">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xl">ようこそ、{user.name}さん</CardTitle>
-          <CardDescription>{user.level}会員</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-between items-baseline">
-            <div className="text-3xl font-bold">{user.points} <span className="text-sm text-muted-foreground">ポイント</span></div>
-            <div className="text-sm text-muted-foreground">{user.nextLevelPoints - user.points}ポイントで{user.nextLevel}へ</div>
+    <ProtectedLayout>
+      <div className="min-h-screen bg-gray-100">
+        <header className="bg-white shadow">
+          <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-gray-900">麺ポイント</h1>
+            <button
+              onClick={handleSignOut}
+              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            >
+              ログアウト
+            </button>
           </div>
-          
-          <div className="space-y-1">
-            <Progress value={progressPercentage} className="h-2" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{user.level}</span>
-              <span>{user.nextLevel}</span>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="pt-0">
-          <Link href="/collect-points" className="w-full">
-            <Button className="w-full gap-2">
-              <QrCode className="h-4 w-4" />
-              ポイントを獲得する
-            </Button>
-          </Link>
-        </CardFooter>
-      </Card>
-      
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-4">
-        <Link href="/rewards">
-          <Card className="h-full hover:bg-accent/5 transition-colors">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-              <Gift className="h-8 w-8 text-primary mb-2" />
-              <p className="font-medium">特典を見る</p>
-              <p className="text-xs text-muted-foreground">利用可能な特典: {redeemableRewards.length}</p>
-            </CardContent>
-          </Card>
-        </Link>
+        </header>
         
-        <Link href="/profile">
-          <Card className="h-full hover:bg-accent/5 transition-colors">
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-              <QrCode className="h-8 w-8 text-primary mb-2" />
-              <p className="font-medium">履歴を見る</p>
-              <p className="text-xs text-muted-foreground">最近の活動: {user.history.length}</p>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
-      
-      {/* Available Rewards */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">利用可能な特典</h2>
-          <Link href="/rewards" className="text-sm text-primary flex items-center">
-            すべて見る <ArrowRight className="h-3 w-3 ml-1" />
-          </Link>
-        </div>
-        
-        <div className="space-y-3">
-          {redeemableRewards.length > 0 ? (
-            redeemableRewards.slice(0, 3).map((reward) => (
-              <Card key={reward.id} className="overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="flex items-center">
-                    <div className="p-4 flex items-center justify-center">
-                      <reward.icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="flex-1 p-4">
-                      <p className="font-medium">{reward.name}</p>
-                      <p className="text-sm text-muted-foreground">{reward.points} ポイント</p>
-                    </div>
-                    <div className="pr-4">
-                      <Button variant="outline" size="sm">交換</Button>
-                    </div>
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            {/* QRコード表示モーダル */}
+            {showQR && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+                  <h3 className="text-xl font-bold mb-4 text-center">あなたのポイント獲得用QRコード</h3>
+                  <div className="flex justify-center mb-4">
+                    <QRCodeSVG value={qrValue} size={250} />
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <Card className="bg-muted/50">
-              <CardContent className="p-4 text-center">
-                <p className="text-muted-foreground">まだ交換できる特典がありません</p>
-                <p className="text-sm">もっとポイントを集めましょう！</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-      
-      {/* Recent Activity */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">最近の活動</h2>
-          <Link href="/profile" className="text-sm text-primary flex items-center">
-            すべて見る <ArrowRight className="h-3 w-3 ml-1" />
-          </Link>
-        </div>
-        
-        <div className="space-y-3">
-          {user.history.slice(0, 3).map((item) => (
-            <Card key={item.id}>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium">{item.action}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.store ? item.store : item.reward}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{item.date}</p>
-                  </div>
-                  <div className={`font-medium ${item.points > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {item.points > 0 ? '+' : ''}{item.points}
+                  <p className="text-sm text-gray-600 mb-4 text-center">
+                    このQRコードをスタッフに見せてポイントを獲得しましょう
+                  </p>
+                  <div className="flex justify-center">
+                    <Button onClick={toggleQRCode}>閉じる</Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </div>
+            )}
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                {profileLoading ? (
+                  <div className="flex justify-center py-8">
+                    <LoadingSpinner />
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-center mb-8">
+                      <h2 className="text-2xl font-bold">現在のポイント</h2>
+                      <p className="text-5xl font-bold text-orange-600 mt-2">{profile?.totalPoints || 0} pt</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center">
+                            <QrCode className="mr-2 h-5 w-5" />
+                            QRコード
+                          </CardTitle>
+                          <CardDescription>ポイント獲得用QRコード</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button className="w-full" onClick={toggleQRCode}>
+                            表示する
+                          </Button>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center">
+                            <Gift className="mr-2 h-5 w-5" />
+                            特典交換
+                          </CardTitle>
+                          <CardDescription>ポイントを特典と交換</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button className="w-full" asChild>
+                            <Link href="/rewards">特典を見る</Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center">
+                            <History className="mr-2 h-5 w-5" />
+                            履歴
+                          </CardTitle>
+                          <CardDescription>ポイント履歴を確認</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button className="w-full" asChild>
+                            <Link href="/history">履歴を見る</Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    
+                    <div className="mt-8">
+                      <h3 className="text-lg font-medium">アカウント情報</h3>
+                      <div className="mt-5 border-t border-gray-200">
+                        <dl className="divide-y divide-gray-200">
+                          <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                            <dt className="text-sm font-medium text-gray-500">名前</dt>
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{profile?.name || '未設定'}</dd>
+                          </div>
+                          <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                            <dt className="text-sm font-medium text-gray-500">メールアドレス</dt>
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{profile?.email || '未設定'}</dd>
+                          </div>
+                          <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                            <dt className="text-sm font-medium text-gray-500">電話番号</dt>
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{profile?.phone || '未設定'}</dd>
+                          </div>
+                          <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                            <dt className="text-sm font-medium text-gray-500">合計ポイント</dt>
+                            <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{profile?.totalPoints || 0} pt</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
-    </div>
-  )
+    </ProtectedLayout>
+  );
 }
 

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,32 +11,104 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { QrCode, Users, Gift, BarChart3, Soup } from "lucide-react"
 import Link from "next/link"
-
-const initialRewards = [
-  { id: 1, name: "味玉サービス", points: 100 },
-  { id: 2, name: "チャーシュー増量", points: 200 },
-  { id: 3, name: "ラーメン一杯無料", points: 500 },
-]
-
-const analyticsData = [
-  { name: "1月", redemptions: 65 },
-  { name: "2月", redemptions: 59 },
-  { name: "3月", redemptions: 80 },
-  { name: "4月", redemptions: 81 },
-  { name: "5月", redemptions: 56 },
-  { name: "6月", redemptions: 55 },
-]
+import { api } from "@/lib/api/mutator/custom-instance"
+import { toast } from "sonner"
+import LoadingSpinner from "@/components/LoadingSpinner"
 
 export default function AdminDashboard() {
-  const [rewards, setRewards] = useState(initialRewards)
+  const [rewards, setRewards] = useState<any[]>([])
   const [newReward, setNewReward] = useState({ name: "", points: "" })
+  const [loading, setLoading] = useState(true)
+  const [analyticsData, setAnalyticsData] = useState<any[]>([])
 
-  const handleAddReward = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (newReward.name && newReward.points) {
-      setRewards([...rewards, { ...newReward, id: Date.now(), points: Number.parseInt(newReward.points) }])
-      setNewReward({ name: "", points: "" })
+  // 特典データを取得
+  useEffect(() => {
+    const fetchRewards = async () => {
+      try {
+        setLoading(true)
+        // 実際のAPIが実装されるまでは、モックデータを使用
+        // const response = await api.get('/rewards')
+        // setRewards(response.data)
+        
+        // モックデータを使用
+        setTimeout(() => {
+          setRewards([
+            { id: 1, name: "味玉サービス", points: 100 },
+            { id: 2, name: "チャーシュー増量", points: 200 },
+            { id: 3, name: "ラーメン一杯無料", points: 500 },
+          ])
+          
+          setAnalyticsData([
+            { name: "1月", redemptions: 65 },
+            { name: "2月", redemptions: 59 },
+            { name: "3月", redemptions: 80 },
+            { name: "4月", redemptions: 81 },
+            { name: "5月", redemptions: 56 },
+            { name: "6月", redemptions: 55 },
+          ])
+          
+          setLoading(false)
+        }, 1000)
+      } catch (error) {
+        console.error("Error fetching rewards:", error)
+        setLoading(false)
+      }
     }
+    
+    fetchRewards()
+  }, [])
+
+  const handleAddReward = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newReward.name || !newReward.points) return
+    
+    try {
+      setLoading(true)
+      // 実際のAPIが実装されるまでは、クライアント側で処理
+      // const response = await api.post('/rewards', newReward)
+      // const addedReward = response.data
+      
+      // クライアント側で処理
+      const addedReward = { 
+        ...newReward, 
+        id: Date.now(), 
+        points: Number.parseInt(newReward.points) 
+      }
+      
+      setRewards([...rewards, addedReward])
+      setNewReward({ name: "", points: "" })
+      toast.success("特典を追加しました")
+    } catch (error) {
+      console.error("Error adding reward:", error)
+      toast.error("特典の追加に失敗しました")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteReward = async (id: number) => {
+    try {
+      setLoading(true)
+      // 実際のAPIが実装されるまでは、クライアント側で処理
+      // await api.delete(`/rewards/${id}`)
+      
+      // クライアント側で処理
+      setRewards(rewards.filter(reward => reward.id !== id))
+      toast.success("特典を削除しました")
+    } catch (error) {
+      console.error("Error deleting reward:", error)
+      toast.error("特典の削除に失敗しました")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading && rewards.length === 0) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    )
   }
 
   return (
@@ -61,45 +133,50 @@ export default function AdminDashboard() {
           </Card>
         </Link>
         
-        <Card className="h-full hover:bg-accent/5 transition-colors cursor-pointer">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              顧客管理
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CardDescription>
-              顧客情報の確認や編集を行います
-            </CardDescription>
-          </CardContent>
-        </Card>
+        <Link href="/admin/customers">
+          <Card className="h-full hover:bg-accent/5 transition-colors cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                顧客管理
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>
+                顧客情報の確認や編集を行います
+              </CardDescription>
+            </CardContent>
+          </Card>
+        </Link>
         
-        <Card className="h-full hover:bg-accent/5 transition-colors cursor-pointer">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              売上分析
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CardDescription>
-              ポイント利用状況や売上の詳細分析を表示します
-            </CardDescription>
-          </CardContent>
-        </Card>
+        <Link href="/admin/analytics">
+          <Card className="h-full hover:bg-accent/5 transition-colors cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                売上分析
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>
+                売上や顧客データの分析を行います
+              </CardDescription>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
+      {/* Rewards Management */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Soup className="h-5 w-5 text-primary" />
-            特典管理
-          </CardTitle>
+          <CardTitle>特典管理</CardTitle>
+          <CardDescription>
+            ポイント交換の特典を管理します
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAddReward} className="space-y-4 mb-4">
-            <div className="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
+        <CardContent className="space-y-4">
+          <form onSubmit={handleAddReward}>
+            <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <Label htmlFor="rewardName">特典名</Label>
                 <Input
@@ -120,7 +197,9 @@ export default function AdminDashboard() {
                 />
               </div>
               <div className="flex items-end">
-                <Button type="submit">追加</Button>
+                <Button type="submit" disabled={loading || !newReward.name || !newReward.points}>
+                  {loading ? "追加中..." : "追加"}
+                </Button>
               </div>
             </div>
           </form>
@@ -143,7 +222,8 @@ export default function AdminDashboard() {
                       <Button 
                         variant="destructive" 
                         size="sm"
-                        onClick={() => setRewards(rewards.filter((r) => r.id !== reward.id))}
+                        onClick={() => handleDeleteReward(reward.id)}
+                        disabled={loading}
                       >
                         削除
                       </Button>
